@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lógica & Algoritmos Interativo</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#ecfdf5',
+              400: '#34d399',
+              500: '#10b981',
+              600: '#059669',
+            },
+            darkBg: '#0b0f19',
+            cardBg: '#131b2e',
+            borderCol: '#1f293d',
+            editorBg: '#0d1322'
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['"Fira Code"', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Fonts & FontAwesome -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <!-- CodeMirror Editor -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+
+  <!-- Pyodide para rodar Python nativo direto no navegador (WebAssembly) -->
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js"></script>
+
+  <style>
+    .CodeMirror {
+      height: 320px;
+      font-family: 'Fira Code', monospace;
+      font-size: 14px;
+      border-radius: 0.5rem;
+      background: #0d1322 !important;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #0b0f19;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #223049;
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #334466;
+    }
+  </style>
+</head>
+<body class="bg-darkBg text-slate-100 font-sans min-h-screen flex flex-col">
+
+  <!-- TOPO / HEADER -->
+  <header class="bg-cardBg border-b border-borderCol px-6 py-3 flex items-center justify-between sticky top-0 z-40">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold">
+        <i class="fa-solid fa-code"></i>
+      </div>
+      <div>
+        <h1 class="text-base font-bold text-slate-100 flex items-center gap-2">
+          Lógica & Algoritmos
+          <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Prático</span>
+        </h1>
+        <p class="text-xs text-slate-400">Ambiente interativo de fixação ativa de memória</p>
+      </div>
+    </div>
+
+    <!-- Barra de Progresso Global -->
+    <div class="flex items-center gap-4">
+      <div class="hidden sm:flex flex-col items-end">
+        <div class="text-xs text-slate-400 flex items-center gap-1">
+          <span>Progresso da Trilha:</span>
+          <strong id="progresso-percentual" class="text-emerald-400 font-mono">0%</strong>
+        </div>
+        <div class="w-36 h-2 bg-slate-800 rounded-full overflow-hidden mt-1 border border-borderCol">
+          <div id="progresso-barra" class="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-500" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <!-- Status do Motor Python -->
+      <div id="pyodide-status-badge" class="flex items-center gap-2 text-xs px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700 text-slate-300">
+        <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse" id="pyodide-dot"></span>
+        <span id="pyodide-text">Iniciando motor...</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ÁREA PRINCIPAL COM 3 COLUNAS -->
+  <div class="flex-1 flex overflow-hidden">
+    
+    <!-- COLUNA 1: SIDEBAR COM A LISTA DE LIÇÕES -->
+    <aside class="w-72 bg-cardBg/60 border-r border-borderCol flex flex-col shrink-0 custom-scrollbar overflow-y-auto">
+      <div class="p-4 border-b border-borderCol/50 flex items-center justify-between">
+        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Trilha de Lições</span>
+        <span id="contador-concluidas" class="text-xs font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">0/6</span>
+      </div>
+
+      <nav id="lista-licoes" class="p-2 space-y-1">
+        <!-- Renderizado dinamicamente via JS -->
+      </nav>
+    </aside>
+
+    <!-- ÁREA DE TRABALHO (COLUNAS 2 E 3) -->
+    <main class="flex-1 flex flex-col lg:flex-row overflow-hidden">
+      
+      <!-- COLUNA 2: TEORIA, DIDÁTICA E ACTIVE RECALL -->
+      <section class="lg:w-1/2 p-6 border-b lg:border-b-0 lg:border-r border-borderCol custom-scrollbar overflow-y-auto space-y-6">
+        
+        <!-- Cabeçalho da Lição -->
+        <div>
+          <span id="licao-modulo" class="text-xs font-medium text-emerald-400 uppercase tracking-wider">Módulo 1</span>
+          <h2 id="licao-titulo" class="text-xl font-bold text-white mt-1">Carregando lição...</h2>
+          <p id="licao-desc" class="text-sm text-slate-400 mt-0.5"></p>
+        </div>
+
+        <!-- Card de Conceito -->
+        <div class="bg-cardBg border border-borderCol rounded-xl p-5 shadow-sm space-y-3">
+          <div class="flex items-center gap-2 text-xs font-bold text-slate-300 uppercase tracking-wider">
+            <i class="fa-solid fa-lightbulb text-amber-400"></i>
+            <span>Conceito Essencial</span>
+          </div>
+          <div id="licao-conceito" class="text-sm text-slate-300 leading-relaxed"></div>
+          
+          <!-- Analogia prática -->
+          <div class="bg-slate-900/60 rounded-lg p-3 border border-borderCol/60 flex items-start gap-2.5 text-xs text-slate-300">
+            <i class="fa-solid fa-compass text-teal-400 mt-0.5"></i>
+            <div>
+              <strong class="text-teal-400">Analogia do mundo real:</strong>
+              <span id="licao-analogia" class="text-slate-300 ml-1"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card de Previsão Ativa (Active Recall) -->
+        <div class="bg-gradient-to-br from-cardBg to-slate-900 border border-emerald-500/30 rounded-xl p-5 shadow-sm space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2 text-xs font-bold text-emerald-400 uppercase tracking-wider">
+              <i class="fa-solid fa-brain"></i>
+              <span>Teste Rápido de Fixação (Active Recall)</span>
+            </div>
+            <span class="text-[11px] text-slate-400">Responda antes de codificar</span>
+          </div>
+
+          <p id="previsao-pergunta" class="text-sm font-medium text-slate-100"></p>
+
+          <div id="previsao-opcoes" class="space-y-2 pt-1">
+            <!-- Opções renderizadas via JS -->
+          </div>
+
+          <div id="previsao-feedback" class="hidden p-3 rounded-lg text-xs border"></div>
+        </div>
+
+        <!-- Card do Desafio Prático -->
+        <div class="bg-cardBg border border-borderCol rounded-xl p-5 shadow-sm space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2 text-xs font-bold text-sky-400 uppercase tracking-wider">
+              <i class="fa-solid fa-bullseye"></i>
+              <span>Seu Desafio</span>
+            </div>
+            <button id="btn-toggle-dica" class="text-xs text-slate-400 hover:text-amber-300 flex items-center gap-1 transition">
+              <i class="fa-regular fa-lightbulb"></i>
+              <span>Ver Dica</span>
+            </button>
+          </div>
+
+          <div id="licao-enunciado" class="text-sm text-slate-200 leading-relaxed font-normal"></div>
+
+          <!-- Caixa de Dica Ocultável -->
+          <div id="caixa-dica" class="hidden p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200/90 leading-relaxed">
+            <strong class="text-amber-400">Dica:</strong> <span id="texto-dica"></span>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- COLUNA 3: EDITOR DE CÓDIGO + CONSOLE + TESTE DE MESA -->
+      <section class="lg:w-1/2 flex flex-col bg-darkBg overflow-hidden">
+        
+        <!-- BARRA SUPERIOR DO EDITOR -->
+        <div class="bg-cardBg px-4 py-2.5 border-b border-borderCol flex items-center justify-between">
+          
+          <!-- Seletor de Linguagem -->
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-slate-400">Linguagem:</span>
+            <div class="flex bg-slate-900 p-0.5 rounded-lg border border-borderCol text-xs">
+              <button id="lang-btn-python" onclick="trocarLinguagem('python')" class="px-2.5 py-1 rounded-md font-medium text-emerald-400 bg-emerald-500/10 transition">
+                <i class="fa-brands fa-python mr-1"></i> Python
+              </button>
+              <button id="lang-btn-javascript" onclick="trocarLinguagem('javascript')" class="px-2.5 py-1 rounded-md font-medium text-slate-400 hover:text-slate-200 transition">
+                <i class="fa-brands fa-js mr-1"></i> JavaScript
+              </button>
+            </div>
+          </div>
+
+          <!-- Ações do Editor -->
+          <div class="flex items-center gap-2">
+            <button onclick="resetarCodigo()" title="Restaurar código inicial" class="px-2.5 py-1.5 rounded-lg text-xs text-slate-400 hover:text-slate-200 bg-slate-900 border border-borderCol hover:border-slate-600 transition">
+              <i class="fa-solid fa-arrow-rotate-left mr-1"></i> Resetar
+            </button>
+            <button onclick="executarCodigo()" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-900 bg-slate-200 hover:bg-white transition flex items-center gap-1.5 shadow-sm">
+              <i class="fa-solid fa-play text-slate-900"></i> Executar
+            </button>
+            <button onclick="submeterDesafio()" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 transition flex items-center gap-1.5 shadow-sm shadow-emerald-950">
+              <i class="fa-solid fa-check-double"></i> Submeter
+            </button>
+          </div>
+        </div>
+
+        <!-- ÁREA DO EDITOR CODEMIRROR -->
+        <div class="p-3 bg-editorBg flex-1 border-b border-borderCol relative flex flex-col">
+          <textarea id="code-editor" class="hidden"></textarea>
+        </div>
+
+        <!-- PAINEL INFERIOR: ABAS DE RETORNO -->
+        <div class="h-64 flex flex-col bg-cardBg">
+          
+          <!-- Cabeçalho das Abas -->
+          <div class="flex items-center border-b border-borderCol px-3 bg-slate-900/60 text-xs">
+            <button onclick="trocarAbaFeedback('console')" id="tab-btn-console" class="px-3 py-2 border-b-2 border-emerald-400 font-semibold text-emerald-400 flex items-center gap-1.5">
+              <i class="fa-solid fa-terminal"></i> Console
+            </button>
+            <button onclick="trocarAbaFeedback('mesa')" id="tab-btn-mesa" class="px-3 py-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-1.5">
+              <i class="fa-solid fa-table-cells"></i> Teste de Mesa (Memória)
+            </button>
+            <button onclick="trocarAbaFeedback('testes')" id="tab-btn-testes" class="px-3 py-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-1.5">
+              <i class="fa-solid fa-vial"></i> Casos de Teste
+            </button>
+          </div>
+
+          <!-- Conteúdo da Aba 1: Console -->
+          <div id="tab-content-console" class="flex-1 p-3 font-mono text-xs overflow-y-auto custom-scrollbar bg-[#0b0f19] text-slate-300">
+            <div id="console-output" class="whitespace-pre-wrap leading-relaxed text-slate-400">Clique em "Executar" para rodar o código.</div>
+          </div>
+
+          <!-- Conteúdo da Aba 2: Teste de Mesa -->
+          <div id="tab-content-mesa" class="hidden flex-1 p-3 overflow-y-auto custom-scrollbar bg-[#0b0f19]">
+            <p class="text-xs text-slate-400 mb-2">Variáveis identificadas na memória durante a execução:</p>
+            <div id="mesa-variaveis" class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div class="p-2.5 rounded-lg bg-cardBg border border-borderCol text-xs text-slate-500 italic">
+                Nenhuma variável gravada ainda.
+              </div>
+            </div>
+          </div>
+
+          <!-- Conteúdo da Aba 3: Casos de Teste -->
+          <div id="tab-content-testes" class="hidden flex-1 p-3 overflow-y-auto custom-scrollbar bg-[#0b0f19]">
+            <div id="lista-casos-teste" class="space-y-2 text-xs">
+              <!-- Renderizado via JS -->
+            </div>
+          </div>
+
+        </div>
+
+      </section>
+
+    </main>
+
+  </div>
+
+  <!-- Import do Banco de Lições -->
+  <script src="lessons.js"></script>
+
+  <!-- Script Lógica da Aplicação -->
+  <script>
+    let pyodideInstance = null;
+    let editorInstance = null;
+    let licaoAtual = null;
+    let linguagemAtual = 'python';
+    let progresso = JSON.parse(localStorage.getItem('logica_interativa_progress') || '{}');
+    let codigosSalvos = JSON.parse(localStorage.getItem('logica_interativa_codes') || '{}');
+
+    // Inicialização do Editor CodeMirror
+    document.addEventListener("DOMContentLoaded", () => {
+      const textarea = document.getElementById("code-editor");
+      editorInstance = CodeMirror.fromTextArea(textarea, {
+        lineNumbers: true,
+        mode: "python",
+        theme: "dracula",
+        tabSize: 4,
+        indentUnit: 4,
+        lineWrapping: true,
+        autoCloseBrackets: true
+      });
+
+      // Salvar código ao digitar
+      editorInstance.on("change", () => {
+        if (licaoAtual) {
+          const key = `${licaoAtual.id}_${linguagemAtual}`;
+          codigosSalvos[key] = editorInstance.getValue();
+          localStorage.setItem('logica_interativa_codes', JSON.stringify(codigosSalvos));
+        }
+      });
+
+      // Botão de dica
+      document.getElementById("btn-toggle-dica").addEventListener("click", () => {
+        const box = document.getElementById("caixa-dica");
+        box.classList.toggle("hidden");
+      });
+
+      // Carregar lição inicial
+      renderizarListaLicoes();
+      carregarLicao(LESSONS_DATA[0].id);
+
+      // Iniciar Pyodide em segundo plano
+      iniciarPyodide();
+    });
+
+    // Inicializador do Pyodide WebAssembly
+    async function iniciarPyodide() {
+      const badge = document.getElementById("pyodide-status-badge");
+      const dot = document.getElementById("pyodide-dot");
+      const txt = document.getElementById("pyodide-text");
+
+      try {
+        pyodideInstance = await loadPyodide();
+        dot.classList.remove("bg-amber-400", "animate-pulse");
+        dot.classList.add("bg-emerald-400");
+        txt.textContent = "Python 3.11 Pronto";
+      } catch (err) {
+        console.error("Falha ao carregar Pyodide:", err);
+        dot.classList.remove("bg-amber-400", "animate-pulse");
+        dot.classList.add("bg-rose-500");
+        txt.textContent = "Erro motor Python";
+      }
+    }
+
+    // Renderizar barra lateral de lições
+    function renderizarListaLicoes() {
+      const container = document.getElementById("lista-licoes");
+      container.innerHTML = "";
+
+      let concluidas = 0;
+      LESSONS_DATA.forEach((licao, index) => {
+        const isConcluida = !!progresso[licao.id];
+        if (isConcluida) concluidas++;
+
+        const isAtiva = licaoAtual && licaoAtual.id === licao.id;
+
+        const btn = document.createElement("button");
+        btn.onclick = () => carregarLicao(licao.id);
+        btn.className = `w-full text-left p-2.5 rounded-lg flex items-center justify-between text-xs transition ${
+          isAtiva 
+            ? 'bg-slate-800 text-white font-semibold border border-slate-700' 
+            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+        }`;
+
+        btn.innerHTML = `
+          <div class="flex items-center gap-2 overflow-hidden">
+            <span class="w-4 h-4 rounded-full flex items-center justify-center text-[10px] ${
+              isConcluida ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-500'
+            }">
+              <i class="fa-solid ${isConcluida ? 'fa-check' : 'fa-circle'} text-[8px]"></i>
+            </span>
+            <span class="truncate">${licao.titulo}</span>
+          </div>
+        `;
+
+        container.appendChild(btn);
+      });
+
+      // Atualizar estatísticas de progresso
+      const total = LESSONS_DATA.length;
+      const pct = Math.round((concluidas / total) * 100);
+      document.getElementById("progresso-percentual").textContent = `${pct}%`;
+      document.getElementById("progresso-barra").style.width = `${pct}%`;
+      document.getElementById("contador-concluidas").textContent = `${concluidas}/${total}`;
+    }
+
+    // Carregar Lição
+    function carregarLicao(id) {
+      licaoAtual = LESSONS_DATA.find(l => l.id === id);
+      if (!licaoAtual) return;
+
+      document.getElementById("licao-modulo").textContent = licaoAtual.modulo;
+      document.getElementById("licao-titulo").textContent = licaoAtual.titulo;
+      document.getElementById("licao-desc").textContent = licaoAtual.descricaoCurta;
+      document.getElementById("licao-conceito").innerHTML = licaoAtual.conceito;
+      document.getElementById("licao-analogia").textContent = licaoAtual.analogia;
+      document.getElementById("licao-enunciado").innerHTML = licaoAtual.enunciado;
+      document.getElementById("texto-dica").textContent = licaoAtual.dica;
+      document.getElementById("caixa-dica").classList.add("hidden");
+
+      // Montar Active Recall
+      renderizarPrevisao(licaoAtual.previsao);
+
+      // Carregar código do usuário ou código inicial
+      const key = `${licaoAtual.id}_${linguagemAtual}`;
+      const salvo = codigosSalvos[key];
+      const inicial = licaoAtual.codigoInicial[linguagemAtual] || "";
+      editorInstance.setValue(salvo !== undefined ? salvo : inicial);
+
+      // Limpar saídas
+      document.getElementById("console-output").textContent = "Pronto para executar.";
+      document.getElementById("mesa-variaveis").innerHTML = '<div class="p-2.5 rounded-lg bg-cardBg border border-borderCol text-xs text-slate-500 italic">Nenhuma variável gravada ainda.</div>';
+
+      renderizarCasosDeTeste(licaoAtual.casosDeTeste);
+      renderizarListaLicoes();
+    }
+
+    // Renderizar pergunta de Previsão Ativa
+    function renderizarPrevisao(prev) {
+      const perguntaEl = document.getElementById("previsao-pergunta");
+      const opcoesEl = document.getElementById("previsao-opcoes");
+      const feedbackEl = document.getElementById("previsao-feedback");
+
+      perguntaEl.textContent = prev.pergunta;
+      opcoesEl.innerHTML = "";
+      feedbackEl.className = "hidden p-3 rounded-lg text-xs border";
+
+      prev.opcoes.forEach((opc, idx) => {
+        const btn = document.createElement("button");
+        btn.className = "w-full text-left px-3 py-2 rounded-lg bg-slate-900 border border-borderCol text-xs text-slate-300 hover:border-emerald-500/50 hover:bg-slate-800/80 transition flex items-center justify-between";
+        btn.innerHTML = `<span>${opc}</span><i class="fa-regular fa-circle text-slate-600"></i>`;
+        
+        btn.onclick = () => {
+          const acertou = (idx === prev.correta);
+          if (acertou) {
+            feedbackEl.className = "p-3 rounded-lg text-xs bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 flex items-start gap-2";
+            feedbackEl.innerHTML = `<i class="fa-solid fa-check text-emerald-400 mt-0.5"></i><div><strong>Correto!</strong> ${prev.explicacao}</div>`;
+            btn.className = "w-full text-left px-3 py-2 rounded-lg bg-emerald-500/20 border border-emerald-500 text-xs text-white font-medium flex items-center justify-between";
+            btn.querySelector("i").className = "fa-solid fa-check-circle text-emerald-400";
+          } else {
+            feedbackEl.className = "p-3 rounded-lg text-xs bg-rose-500/10 border border-rose-500/30 text-rose-300 flex items-start gap-2";
+            feedbackEl.innerHTML = `<i class="fa-solid fa-xmark text-rose-400 mt-0.5"></i><div><strong>Não foi dessa vez:</strong> ${prev.explicacao}</div>`;
+            btn.className = "w-full text-left px-3 py-2 rounded-lg bg-rose-500/20 border border-rose-500 text-xs text-white flex items-center justify-between";
+            btn.querySelector("i").className = "fa-solid fa-times-circle text-rose-400";
+          }
+        };
+
+        opcoesEl.appendChild(btn);
+      });
+    }
+
+    // Renderizar Casos de Teste
+    function renderizarCasosDeTeste(casos) {
+      const container = document.getElementById("lista-casos-teste");
+      container.innerHTML = "";
+
+      casos.forEach((caso, i) => {
+        const div = document.createElement("div");
+        div.id = `card-caso-${i}`;
+        div.className = "p-3 rounded-lg bg-slate-900 border border-borderCol flex flex-col gap-1";
+        div.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="font-semibold text-slate-300">${caso.nome}</span>
+            <span class="status-badge px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-400">Pendente</span>
+          </div>
+          <div class="text-[11px] text-slate-400">
+            Saída esperada: <code class="text-emerald-400 bg-slate-950 px-1 py-0.5 rounded">${caso.saidaEsperada}</code>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    // Alternar Linguagem
+    function trocarLinguagem(novaLang) {
+      linguagemAtual = novaLang;
+      const btnPy = document.getElementById("lang-btn-python");
+      const btnJs = document.getElementById("lang-btn-javascript");
+
+      if (novaLang === 'python') {
+        btnPy.className = "px-2.5 py-1 rounded-md font-medium text-emerald-400 bg-emerald-500/10 transition";
+        btnJs.className = "px-2.5 py-1 rounded-md font-medium text-slate-400 hover:text-slate-200 transition";
+        editorInstance.setOption("mode", "python");
+      } else {
+        btnJs.className = "px-2.5 py-1 rounded-md font-medium text-emerald-400 bg-emerald-500/10 transition";
+        btnPy.className = "px-2.5 py-1 rounded-md font-medium text-slate-400 hover:text-slate-200 transition";
+        editorInstance.setOption("mode", "javascript");
+      }
+
+      if (licaoAtual) {
+        const key = `${licaoAtual.id}_${linguagemAtual}`;
+        const salvo = codigosSalvos[key];
+        const inicial = licaoAtual.codigoInicial[linguagemAtual] || "";
+        editorInstance.setValue(salvo !== undefined ? salvo : inicial);
+      }
+    }
+
+    // Resetar Código da Lição Atual
+    function resetarCodigo() {
+      if (!licaoAtual) return;
+      const inicial = licaoAtual.codigoInicial[linguagemAtual] || "";
+      editorInstance.setValue(inicial);
+      const key = `${licaoAtual.id}_${linguagemAtual}`;
+      delete codigosSalvos[key];
+      localStorage.setItem('logica_interativa_codes', JSON.stringify(codigosSalvos));
+    }
+
+    // Alternar Abas do Painel Inferior
+    function trocarAbaFeedback(aba) {
+      const tabs = ['console', 'mesa', 'testes'];
+      tabs.forEach(t => {
+        const btn = document.getElementById(`tab-btn-${t}`);
+        const content = document.getElementById(`tab-content-${t}`);
+        if (t === aba) {
+          btn.className = "px-3 py-2 border-b-2 border-emerald-400 font-semibold text-emerald-400 flex items-center gap-1.5";
+          content.classList.remove("hidden");
+        } else {
+          btn.className = "px-3 py-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-1.5";
+          content.classList.add("hidden");
+        }
+      });
+    }
+
+    // Motor de Execução Unificado
+    async function executarCodigoInterno(codigo) {
+      let saida = "";
+      let variaveisMesa = {};
+
+      if (linguagemAtual === 'python') {
+        if (!pyodideInstance) {
+          throw new Error("O motor Python (Pyodide) ainda está carregando. Aguarde alguns segundos...");
+        }
+
+        // Script Python que captura stdout e inspeciona globals
+        const wrapper = `
+import sys
+import io
+
+_stdout_buffer = io.StringIO()
+sys.stdout = _stdout_buffer
+
+# Executar codigo do usuario
+${codigo}
+
+sys.stdout = sys.__stdout__
+_captured_output = _stdout_buffer.getvalue()
+`;
+        await pyodideInstance.runPythonAsync(wrapper);
+        saida = pyodideInstance.globals.get("_captured_output");
+
+        // Inspecionar variáveis globais criadas pelo usuário
+        const pyGlobals = pyodideInstance.globals.toJs();
+        for (let [k, v] of pyGlobals) {
+          if (!k.startsWith("_") && !['sys', 'io'].includes(k)) {
+            try {
+              variaveisMesa[k] = JSON.stringify(v);
+            } catch(e) {
+              variaveisMesa[k] = String(v);
+            }
+          }
+        }
+      } else {
+        // Execução JavaScript com captura de console.log
+        const logs = [];
+        const customConsole = {
+          log: (...args) => logs.push(args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ')),
+          error: (...args) => logs.push("ERRO: " + args.join(' ')),
+          warn: (...args) => logs.push("AVISO: " + args.join(' '))
+        };
+
+        const executor = new Function('console', `
+          ${codigo}
+        `);
+        executor(customConsole);
+        saida = logs.join('\n');
+      }
+
+      return { saida: saida.trim(), variaveis: variaveisMesa };
+    }
+
+    // Ação do Botão "Executar"
+    async function executarCodigo() {
+      const codigo = editorInstance.getValue();
+      const consoleOut = document.getElementById("console-output");
+      trocarAbaFeedback("console");
+      consoleOut.textContent = "Executando...";
+
+      try {
+        const res = await executarCodigoInterno(codigo);
+        consoleOut.textContent = res.saida || "(Código executado sem saída de texto)";
+        atualizarMesaDeVariaveis(res.variaveis);
+      } catch (err) {
+        consoleOut.innerHTML = `<span class="text-rose-400 font-bold">Erro de Execução:</span>\n${err.message}`;
+      }
+    }
+
+    // Atualizar Caixas da Mesa de Memória
+    function atualizarMesaDeVariaveis(vars) {
+      const container = document.getElementById("mesa-variaveis");
+      container.innerHTML = "";
+
+      const chaves = Object.keys(vars);
+      if (chaves.length === 0) {
+        container.innerHTML = '<div class="p-2.5 rounded-lg bg-cardBg border border-borderCol text-xs text-slate-500 italic">Nenhuma variável detectada no escopo.</div>';
+        return;
+      }
+
+      chaves.forEach(nome => {
+        const val = vars[nome];
+        const card = document.createElement("div");
+        card.className = "p-2.5 rounded-lg bg-cardBg border border-emerald-500/20 flex flex-col gap-1";
+        card.innerHTML = `
+          <span class="text-[10px] font-mono text-slate-400 uppercase tracking-wider">${nome}</span>
+          <span class="text-xs font-mono font-bold text-emerald-400 truncate">${val}</span>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    // Ação do Botão "Submeter Desafio"
+    async function submeterDesafio() {
+      if (!licaoAtual) return;
+      trocarAbaFeedback("testes");
+      const codigo = editorInstance.getValue();
+
+      let todosPassaram = true;
+
+      for (let i = 0; i < licaoAtual.casosDeTeste.length; i++) {
+        const caso = licaoAtual.casosDeTeste[i];
+        const card = document.getElementById(`card-caso-${i}`);
+        const badge = card.querySelector(".status-badge");
+
+        try {
+          const res = await executarCodigoInterno(codigo);
+          const acertou = res.saida.includes(caso.saidaEsperada);
+
+          if (acertou) {
+            badge.className = "status-badge px-2 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-400 font-bold";
+            badge.textContent = "Aprovado ✔";
+          } else {
+            todosPassaram = false;
+            badge.className = "status-badge px-2 py-0.5 rounded text-[10px] bg-rose-500/20 text-rose-400 font-bold";
+            badge.textContent = "Falhou ✖";
+          }
+        } catch (err) {
+          todosPassaram = false;
+          badge.className = "status-badge px-2 py-0.5 rounded text-[10px] bg-rose-500/20 text-rose-400 font-bold";
+          badge.textContent = "Erro";
+        }
+      }
+
+      if (todosPassaram) {
+        progresso[licaoAtual.id] = true;
+        localStorage.setItem('logica_interativa_progress', JSON.stringify(progresso));
+        renderizarListaLicoes();
+        
+        // Alerta elegante de sucesso
+        const consoleOut = document.getElementById("console-output");
+        consoleOut.innerHTML = `
+          <div class="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-emerald-300">
+            🎉 <strong>Parabéns! Desafio concluído com sucesso!</strong><br>
+            Você dominou o conceito desta lição. Avance para a próxima na barra lateral.
+          </div>
+        `;
+        trocarAbaFeedback("console");
+      }
+    }
+  </script>
+
+</body>
+</html>
